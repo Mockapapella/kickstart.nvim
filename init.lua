@@ -194,6 +194,12 @@ vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper win
 vim.api.nvim_set_keymap('n', '<C-d>', '<C-d>zz', { noremap = true, silent = true })
 vim.api.nvim_set_keymap('n', '<C-u>', '<C-u>zz', { noremap = true, silent = true })
 
+vim.api.nvim_create_user_command('Fmt', function()
+  local filepath = vim.fn.expand '%:p'
+  vim.fn.system('pre-commit run --files ' .. filepath)
+  vim.cmd 'e!'
+end, {})
+
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
 
@@ -229,6 +235,61 @@ vim.opt.rtp:prepend(lazypath)
 --
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
+  -- Neovim debugger
+  --  {
+  --    'mfussenegger/nvim-dap',
+  --    dependencies = {
+  --      'nvim-neotest/nvim-nio',
+  --      'rcarriga/nvim-dap-ui',
+  --      'mfussenegger/nvim-dap-python',
+  --    },
+  --    config = function()
+  --      local dap = require 'dap'
+  --      local dapui = require 'dapui'
+  --
+  --      require('dapui').setup()
+  --      require('dap-python').setup()
+  --
+  --      dap.listeners.before.attach.dapui_config = function()
+  --        dapui.open()
+  --      end
+  --      dap.listeners.before.launch.dapui_config = function()
+  --        dapui.open()
+  --      end
+  --      dap.listeners.before.event_terminated.dapui_config = function()
+  --        dapui.close()
+  --      end
+  --      dap.listeners.before.event_exited.dapui_config = function()
+  --        dapui.close()
+  --      end
+  --
+  --      vim.keymap.set('n', '<Leader>dc', function()
+  --        require('dap').continue()
+  --      end)
+  --      vim.keymap.set('n', '<Leader>dt', function()
+  --        require('dap').toggle_breakpoint()
+  --      end)
+  --    end,
+  --  },
+  {
+    'linux-cultist/venv-selector.nvim',
+    dependencies = { 'neovim/nvim-lspconfig', 'nvim-telescope/telescope.nvim', 'mfussenegger/nvim-dap-python' },
+    config = function()
+      require('venv-selector').setup {
+        -- Your options go here
+        -- name = "venv",
+        -- auto_refresh = false
+      }
+    end,
+    event = 'VeryLazy', -- Optional: needed only if you want to type `:VenvSelect` without a keymapping
+    keys = {
+      -- Keymap to open VenvSelector to pick a venv.
+      { '<leader>vs', '<cmd>VenvSelect<cr>' },
+      -- Keymap to retrieve the venv from a cache (the one previously used for the same project directory).
+      { '<leader>vc', '<cmd>VenvSelectCached<cr>' },
+    },
+  },
+
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
   'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
 
@@ -860,3 +921,53 @@ require('lazy').setup({
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
+local function open_github(start_line, end_line)
+  local file_path = vim.fn.expand '%:p'
+  local git_root = vim.fn.system('git -C ' .. vim.fn.expand '%:p:h' .. ' rev-parse --show-toplevel'):gsub('[\n\r]+', '')
+  local relative_file_path = file_path:sub(#git_root + 2)
+  local branch = vim.fn.system('git branch --show-current'):gsub('[\n\r]+', '')
+  local remote_url = vim.fn.system('git remote get-url origin'):gsub('[\n\r]+', '')
+  local github_url = remote_url:gsub('git@github.com:', 'https://github.com/'):gsub('.git$', '')
+  local url = github_url .. '/blob/' .. branch .. '/' .. relative_file_path
+
+  if start_line and end_line then
+    url = url .. '#L' .. start_line .. '-L' .. end_line
+  else
+    local line_number = vim.fn.line '.'
+    url = url .. '#L' .. line_number
+  end
+
+  local open_command
+  if vim.fn.has 'mac' == 1 then
+    open_command = 'open "' .. url .. '"'
+  elseif vim.fn.has 'unix' == 1 then
+    open_command = 'xdg-open "' .. url .. '"'
+  elseif vim.fn.has 'win32' == 1 or vim.fn.has 'win64' == 1 then
+    open_command = 'start "" "' .. url .. '"'
+  end
+
+  if open_command then
+    vim.fn.system(open_command)
+  else
+    print 'Unsupported system for opening URLs'
+  end
+end
+
+local function open_github_visual()
+  local start_pos = vim.fn.getpos "'<"
+  local end_pos = vim.fn.getpos "'>"
+  local start_line, end_line = start_pos[2], end_pos[2]
+  open_github(start_line, end_line)
+end
+
+-- Register the functions in the Lua global namespace under `myplugin` to avoid conflicts
+_G.myplugin = {
+  open_github = open_github,
+  open_github_visual = open_github_visual,
+}
+
+-- Keybinding for normal mode, calling the global function
+vim.api.nvim_set_keymap('n', 'gh', ':lua myplugin.open_github()<CR>', { noremap = true, silent = true })
+
+-- Keybinding for visual mode
+vim.api.nvim_set_keymap('v', 'gh', ':<C-U>lua myplugin.open_github_visual()<CR>', { noremap = true, silent = true })
