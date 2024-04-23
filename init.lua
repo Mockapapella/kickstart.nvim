@@ -236,41 +236,141 @@ vim.opt.rtp:prepend(lazypath)
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
   -- Neovim debugger
-  --  {
-  --    'mfussenegger/nvim-dap',
-  --    dependencies = {
-  --      'nvim-neotest/nvim-nio',
-  --      'rcarriga/nvim-dap-ui',
-  --      'mfussenegger/nvim-dap-python',
-  --    },
-  --    config = function()
-  --      local dap = require 'dap'
-  --      local dapui = require 'dapui'
-  --
-  --      require('dapui').setup()
-  --      require('dap-python').setup()
-  --
-  --      dap.listeners.before.attach.dapui_config = function()
-  --        dapui.open()
-  --      end
-  --      dap.listeners.before.launch.dapui_config = function()
-  --        dapui.open()
-  --      end
-  --      dap.listeners.before.event_terminated.dapui_config = function()
-  --        dapui.close()
-  --      end
-  --      dap.listeners.before.event_exited.dapui_config = function()
-  --        dapui.close()
-  --      end
-  --
-  --      vim.keymap.set('n', '<Leader>dc', function()
-  --        require('dap').continue()
-  --      end)
-  --      vim.keymap.set('n', '<Leader>dt', function()
-  --        require('dap').toggle_breakpoint()
-  --      end)
-  --    end,
-  --  },
+  {
+    'mfussenegger/nvim-dap',
+    dependencies = { 'nvim-neotest/nvim-nio', 'mfussenegger/nvim-dap-python', 'rcarriga/nvim-dap-ui', 'theHamsta/nvim-dap-virtual-text' },
+    vim.keymap.set('n', '<F5>', ":lua require'dap'.continue()<CR>"),
+    vim.keymap.set('n', '<F10>', ":lua require'dap'.step_over()<CR>"),
+    vim.keymap.set('n', '<F11>', ":lua require'dap'.step_into()<CR>"),
+    vim.keymap.set('n', '<F12>', ":lua require'dap'.step_out()<CR>"),
+    vim.keymap.set('n', '<leader>bb', ":lua require'dap'.toggle_breakpoint()<CR>"),
+
+    config = function()
+      local dap, dapui = require 'dap', require 'dapui'
+      local project_root = vim.fn.getcwd() -- Get the current working directory dynamically
+      local ts_utils = require 'nvim-treesitter.ts_utils'
+
+      require('dap').set_log_level 'TRACE'
+      local function get_current_function_name()
+        local node = ts_utils.get_node_at_cursor()
+        if not node then
+          return nil
+        end
+
+        while node do
+          local type = node:type()
+          if type == 'function_definition' or type == 'method_definition' then
+            local name_node = node:named_child(0) -- Assuming the function name is the first child
+            if name_node then
+              return ts_utils.get_node_text(name_node)[1]
+            end
+          end
+          node = node:parent()
+        end
+      end
+
+      -- Setup the DAP UI
+      dapui.setup()
+
+      vim.keymap.set('n', '<leader>dt', function()
+        local test_pattern = get_current_function_name()
+        vim.fn.jobstart('make test-debug TEST_PATTERN=' .. test_pattern, { detach = true })
+        vim.defer_fn(function()
+          -- Implement a retry loop or port check here
+          require('dap').continue()
+        end, 5000) -- Replace with a more robust check
+      end, { desc = 'Debug current test in Docker' })
+
+      -- Use dapui when the debugger starts
+      dap.listeners.before.attach.dapui_config = function()
+        dapui.open()
+      end
+      dap.listeners.before.launch.dapui_config = function()
+        dapui.open()
+      end
+      -- dap.listeners.before.event_terminated.dapui_config = function()
+      --   dapui.close()
+      -- end
+      -- dap.listeners.before.event_exited.dapui_config = function()
+      --   dapui.close()
+      -- end
+
+      -- Add Python adapter for dap
+      dap.adapters.python = {
+        type = 'executable',
+        command = os.getenv 'HOME' .. '/.virtualenvs/debugpy/bin/python', -- path to the Python executable in your debugpy virtualenv
+        args = { '-m', 'debugpy.adapter' },
+      }
+
+      dap.configurations.python = {
+        {
+          -- Setup for running gunicorn under dap
+          type = 'python', -- specify the dap adapter type
+          request = 'launch',
+          name = 'Sentiment - App',
+          program = project_root .. '/venv/bin/gunicorn', -- Path to the gunicorn executable in the venv
+          args = { 'app.main:app' }, -- The WSGI application module path in gunicorn's format
+          env = {
+            DEBUG = 'True',
+            DD_DOGSTATSD_DISABLE = 'True',
+          },
+          console = 'integratedTerminal',
+          cwd = project_root .. '/sentiment', -- Set the working directory dynamically
+          jinja = true,
+          pythonPath = function()
+            -- Returning the Python path from the virtual environment dynamically
+            return project_root .. '/venv/bin/python'
+          end,
+        },
+        {
+          -- Setup for running pytest under dap
+          type = 'python',
+          request = 'launch',
+          name = 'Sentiment - All Tests',
+          program = project_root .. '/venv/bin/pytest', -- Dynamic path to the python executable in the venv
+          args = { 'tests/' }, -- Invoke pytest as a module and specify the tests directory dynamically
+          cwd = project_root .. '/sentiment', -- Set the correct working directory dynamically
+          pythonPath = function()
+            -- Returning the Python path from the virtual environment dynamically
+            return project_root .. '/venv/bin/python'
+          end,
+        },
+        {
+          type = 'python',
+          request = 'launch',
+          name = 'Sentiment - Current Test',
+          program = project_root .. '/venv/bin/pytest',
+          args = function()
+            local file_path = vim.fn.expand '%:p' -- gets the current file path in full
+            local function_name = get_current_function_name()
+            if function_name then
+              return { file_path .. '::' .. function_name }
+            else
+              return { file_path } -- Fallback to file path if function name can't be determined
+            end
+          end,
+          cwd = project_root .. '/sentiment',
+          pythonPath = function()
+            return project_root .. '/venv/bin/python'
+          end,
+        },
+        {
+          type = 'python',
+          request = 'attach',
+          name = 'Docker - Debug',
+          pathMappings = {
+            {
+              localRoot = vim.fn.getcwd(),
+              remoteRoot = '/workspace',
+            },
+          },
+          port = 5678,
+          host = '0.0.0.0',
+        },
+      }
+    end,
+  },
+
   {
     'linux-cultist/venv-selector.nvim',
     dependencies = { 'neovim/nvim-lspconfig', 'nvim-telescope/telescope.nvim', 'mfussenegger/nvim-dap-python' },
