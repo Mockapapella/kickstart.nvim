@@ -278,7 +278,7 @@ require('lazy').setup({
         vim.defer_fn(function()
           -- Implement a retry loop or port check here
           require('dap').continue()
-        end, 5000) -- Replace with a more robust check
+        end, 10000) -- Replace with a more robust check
       end, { desc = 'Debug current test in Docker' })
 
       -- Use dapui when the debugger starts
@@ -288,12 +288,12 @@ require('lazy').setup({
       dap.listeners.before.launch.dapui_config = function()
         dapui.open()
       end
-      -- dap.listeners.before.event_terminated.dapui_config = function()
-      --   dapui.close()
-      -- end
-      -- dap.listeners.before.event_exited.dapui_config = function()
-      --   dapui.close()
-      -- end
+      dap.listeners.before.event_terminated.dapui_config = function()
+        dapui.close()
+      end
+      dap.listeners.before.event_exited.dapui_config = function()
+        dapui.close()
+      end
 
       -- Add Python adapter for dap
       dap.adapters.python = {
@@ -301,6 +301,13 @@ require('lazy').setup({
         command = os.getenv 'HOME' .. '/.virtualenvs/debugpy/bin/python', -- path to the Python executable in your debugpy virtualenv
         args = { '-m', 'debugpy.adapter' },
       }
+
+      -- Debugging in a docker container
+      -- dap.adapters.python = {
+      --   type = 'server',
+      --   host = 'localhost',
+      --   port = 5678, -- This should match the port that debugpy is listening on in Docker
+      -- }
 
       dap.configurations.python = {
         {
@@ -356,16 +363,34 @@ require('lazy').setup({
         },
         {
           type = 'python',
+          request = 'launch',
+          name = 'RAG Indexer - Current Test',
+          program = project_root .. '/venv/bin/pytest',
+          args = function()
+            local file_path = vim.fn.expand '%:p' -- gets the current file path in full
+            local function_name = get_current_function_name()
+            if function_name then
+              return { file_path .. '::' .. function_name }
+            else
+              return { file_path } -- Fallback to file path if function name can't be determined
+            end
+          end,
+          cwd = project_root .. '/rag_indexer',
+          pythonPath = function()
+            return project_root .. '/venv/bin/python'
+          end,
+        },
+        {
+          -- Connect to the Python process in Docker
+          type = 'python', -- Must match the adapter key
           request = 'attach',
-          name = 'Docker - Debug',
+          name = 'Attach to Docker Debugpy',
           pathMappings = {
             {
-              localRoot = vim.fn.getcwd(),
-              remoteRoot = '/workspace',
+              localRoot = vim.fn.getcwd(), -- The directory of your project on your local filesystem
+              remoteRoot = '/workspace', -- The directory in Docker where your project is mounted
             },
           },
-          port = 5678,
-          host = '0.0.0.0',
         },
       }
     end,
