@@ -200,6 +200,8 @@ vim.api.nvim_create_user_command('Fmt', function()
   vim.cmd 'e!'
 end, {})
 
+vim.opt.guifont = { 'UbuntuMono Nerd Font', ':h12' }
+
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
 
@@ -239,11 +241,12 @@ require('lazy').setup({
   {
     'mfussenegger/nvim-dap',
     dependencies = { 'nvim-neotest/nvim-nio', 'mfussenegger/nvim-dap-python', 'rcarriga/nvim-dap-ui', 'theHamsta/nvim-dap-virtual-text' },
-    vim.keymap.set('n', '<F5>', ":lua require'dap'.continue()<CR>"),
-    vim.keymap.set('n', '<F10>', ":lua require'dap'.step_over()<CR>"),
-    vim.keymap.set('n', '<F11>', ":lua require'dap'.step_into()<CR>"),
-    vim.keymap.set('n', '<F12>', ":lua require'dap'.step_out()<CR>"),
-    vim.keymap.set('n', '<leader>bb', ":lua require'dap'.toggle_breakpoint()<CR>"),
+    vim.keymap.set('n', '<F1>', ":lua require'dap'.continue()<CR>"),
+    vim.keymap.set('n', '<F2>', ":lua require'dap'.step_over()<CR>"),
+    vim.keymap.set('n', '<F3>', ":lua require'dap'.step_into()<CR>"),
+    vim.keymap.set('n', '<F4>', ":lua require'dap'.step_out()<CR>"),
+    vim.keymap.set('n', '<F5>', ":lua require'dap'.close(); require'dapui'.close()<CR>"),
+    vim.keymap.set('n', '<leader>a', ":lua require'dap'.toggle_breakpoint()<CR>"),
 
     config = function()
       local dap, dapui = require 'dap', require 'dapui'
