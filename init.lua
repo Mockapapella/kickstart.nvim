@@ -193,6 +193,12 @@ vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper win
 -- Custom Keybinds
 vim.api.nvim_set_keymap('n', '<C-d>', '<C-d>zz', { noremap = true, silent = true })
 vim.api.nvim_set_keymap('n', '<C-u>', '<C-u>zz', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>gg', ':Neogit<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>gd', ':DiffviewOpen<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>gc', ':DiffviewClose<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>gl', ':Neogit log<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', 'yui', '0ggVGY', { desc = 'Copy entire file' })
+vim.api.nvim_set_keymap('n', 'yup', '0ggVGp', { desc = 'Paste over entire file' })
 
 vim.api.nvim_create_user_command('Fmt', function()
   local filepath = vim.fn.expand '%:p'
@@ -368,11 +374,11 @@ require('lazy').setup({
           -- Connect to the Python process in Docker
           type = 'python', -- Must match the adapter key
           request = 'attach',
-          name = 'Dockerfile - /app',
+          name = 'Dockerfile - /workspace',
           pathMappings = {
             {
               localRoot = vim.fn.getcwd(), -- The directory of your project on your local filesystem
-              remoteRoot = '/app', -- The directory in Docker where your project is mounted
+              remoteRoot = '/workspace', -- The directory in Docker where your project is mounted
             },
           },
         },
@@ -430,6 +436,18 @@ require('lazy').setup({
         changedelete = { text = '~' },
       },
     },
+  },
+  {
+    'NeogitOrg/neogit',
+    dependencies = {
+      'nvim-lua/plenary.nvim', -- required
+      'sindrets/diffview.nvim', -- optional - Diff integration
+
+      -- Only one of these is needed, not both.
+      'nvim-telescope/telescope.nvim', -- optional
+      'ibhagwan/fzf-lua', -- optional
+    },
+    config = true,
   },
 
   -- NOTE: Plugins can also be configured to run lua code when they are loaded.
@@ -1080,3 +1098,135 @@ vim.api.nvim_set_keymap('n', 'gh', ':lua myplugin.open_github()<CR>', { noremap 
 
 -- Keybinding for visual mode
 vim.api.nvim_set_keymap('v', 'gh', ':<C-U>lua myplugin.open_github_visual()<CR>', { noremap = true, silent = true })
+
+local snippet_buffer = {}
+
+-- Helper function to get selected text
+local function get_visual_selection()
+  local start_pos = vim.fn.getpos "'<"
+  local end_pos = vim.fn.getpos "'>"
+  local start_line, end_line = start_pos[2], end_pos[2]
+  local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+  return table.concat(lines, '\n')
+end
+
+-- Add snippet functions (normal and visual mode)
+_G.add_snippet_normal = function()
+  local code = vim.api.nvim_get_current_line()
+  local current_file = vim.fn.expand '%:p'
+  local snippet = {
+    directory = current_file,
+    stat = vim.fn.system('stat ' .. current_file):gsub('\n', ' '),
+    code = code,
+  }
+  table.insert(snippet_buffer, snippet)
+end
+
+_G.add_snippet_visual = function()
+  local code = get_visual_selection()
+  local current_file = vim.fn.expand '%:p'
+  local snippet = {
+    directory = current_file,
+    stat = vim.fn.system('stat ' .. current_file):gsub('\n', ' '),
+    code = code,
+  }
+  table.insert(snippet_buffer, snippet)
+end
+
+-- Function to generate file tree
+local function generate_file_tree()
+  local root_dir = vim.fn.getcwd()
+  local tree = {}
+
+  for _, snippet in ipairs(snippet_buffer) do
+    local path = vim.fn.fnamemodify(snippet.directory, ':~:.')
+    local parts = vim.split(path, '/')
+    local current = tree
+    for i, part in ipairs(parts) do
+      if i == #parts then
+        current[part] = true -- Mark as file
+      else
+        current[part] = current[part] or {}
+        current = current[part]
+      end
+    end
+  end
+
+  local function render_tree(node, prefix, is_last)
+    local lines = {}
+    local keys = vim.tbl_keys(node)
+    table.sort(keys)
+
+    for i, key in ipairs(keys) do
+      local is_last_item = (i == #keys)
+      local new_prefix = prefix .. (is_last and '    ' or '│   ')
+      local line = prefix .. (is_last_item and '└── ' or '├── ') .. key
+
+      table.insert(lines, line)
+
+      if type(node[key]) == 'table' then
+        local subtree = render_tree(node[key], new_prefix, is_last_item)
+        vim.list_extend(lines, subtree)
+      end
+    end
+
+    return lines
+  end
+
+  return render_tree(tree, '', true)
+end
+
+-- View snippets function
+_G.view_snippets = function()
+  if #snippet_buffer == 0 then
+    print 'No snippets in buffer.'
+    return
+  end
+
+  vim.cmd 'vnew'
+  local buf = vim.api.nvim_get_current_buf()
+  vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
+  vim.api.nvim_buf_set_option(buf, 'swapfile', false)
+  vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
+  vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+
+  local content = {}
+  local file_tree = generate_file_tree()
+
+  -- Add file tree to content
+  table.insert(content, 'File Tree:')
+  table.insert(content, '../')
+  vim.list_extend(content, file_tree)
+  table.insert(content, string.rep('-', 40))
+  table.insert(content, '')
+
+  -- Add snippets to content
+  for i, snippet in ipairs(snippet_buffer) do
+    table.insert(content, 'Snippet ' .. i .. ':')
+    table.insert(content, 'Directory: ' .. snippet.directory)
+    table.insert(content, 'Stat: ' .. snippet.stat)
+    table.insert(content, 'Code:')
+    for _, line in ipairs(vim.split(snippet.code, '\n')) do
+      table.insert(content, line)
+    end
+    table.insert(content, '')
+    table.insert(content, string.rep('-', 40))
+    table.insert(content, '')
+  end
+
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, content)
+  print('Displaying ' .. #snippet_buffer .. ' snippets.')
+end
+
+-- Clear snippets function
+_G.clear_snippets = function()
+  local count = #snippet_buffer
+  snippet_buffer = {}
+  print('Snippet buffer cleared. Removed ' .. count .. ' snippets.')
+end
+
+-- Set up keymaps
+vim.api.nvim_set_keymap('n', '<leader>sa', ':lua add_snippet_normal()<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('v', '<leader>sa', ':<C-U>lua add_snippet_visual()<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>sv', ':lua view_snippets()<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>sc', ':lua clear_snippets()<CR>', { noremap = true, silent = true })
