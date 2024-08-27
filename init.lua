@@ -91,7 +91,7 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed
-vim.g.have_nerd_font = false
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.opt`
@@ -244,6 +244,135 @@ vim.opt.rtp:prepend(lazypath)
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
   -- Neovim debugger
+  {
+    'nvim-neo-tree/neo-tree.nvim',
+    branch = 'v3.x',
+    dependencies = {
+      'nvim-lua/plenary.nvim',
+      'nvim-tree/nvim-web-devicons', -- not strictly required, but recommended
+      'MunifTanjim/nui.nvim',
+    },
+    opts = {
+      close_if_last_window = false,
+      enable_git_status = true,
+      enable_diagnostics = true,
+      filesystem = {
+        filtered_items = {
+          visible = false,
+          hide_dotfiles = false,
+          hide_gitignored = false,
+        },
+        follow_current_file = {
+          enabled = true,
+          leave_dirs_open = false,
+        },
+        use_libuv_file_watcher = true,
+      },
+      window = {
+        width = 30,
+        mappings = {
+          ['<space>'] = 'none',
+        },
+      },
+    },
+    config = function(_, opts)
+      require('neo-tree').setup(opts)
+      vim.keymap.set('n', '<leader>e', ':Neotree toggle<CR>', { noremap = true, silent = true })
+      vim.keymap.set('n', '<leader>o', ':Neotree focus<CR>', { noremap = true, silent = true })
+    end,
+  },
+  {
+    'nvim-tree/nvim-web-devicons',
+    lazy = false,
+    priority = 1000, -- Load it before other plugins
+    config = function()
+      require('nvim-web-devicons').setup {
+        -- Your personalization options can go here
+        -- For example:
+        -- override = {
+        --   zsh = {
+        --     icon = "",
+        --     color = "#428850",
+        --     name = "Zsh"
+        --   }
+        -- },
+        -- color_icons = true,
+        -- default = true,
+      }
+    end,
+  },
+  {
+    'yetone/avante.nvim',
+    event = 'VeryLazy',
+    build = 'make', -- Optional, only if you want to use tiktoken_core
+    opts = {
+      provider = 'claude',
+      claude = {
+        endpoint = 'https://api.anthropic.com',
+        model = 'claude-3-5-sonnet-20240620',
+        temperature = 0,
+        max_tokens = 4096,
+      },
+      -- Add any other options you want to customize here
+    },
+    dependencies = {
+      'nvim-tree/nvim-web-devicons',
+      'stevearc/dressing.nvim',
+      'nvim-lua/plenary.nvim',
+      'MunifTanjim/nui.nvim',
+      {
+        'MeanderingProgrammer/render-markdown.nvim',
+        opts = {
+          file_types = { 'markdown', 'Avante' },
+        },
+        ft = { 'markdown', 'Avante' },
+      },
+    },
+  },
+  {
+    'ThePrimeagen/harpoon',
+    branch = 'harpoon2',
+    dependencies = { 'nvim-lua/plenary.nvim' },
+    config = function()
+      local harpoon = require 'harpoon'
+
+      -- REQUIRED
+      harpoon:setup()
+      -- REQUIRED
+
+      -- Basic Harpoon keymaps
+      -- Add current file to Harpoon list
+      vim.keymap.set('n', '<leader>h', function()
+        harpoon:list():add()
+      end, { desc = 'Add file to Harpoon' })
+
+      -- Toggle quick menu
+      vim.keymap.set('n', '<leader>e', function()
+        harpoon.ui:toggle_quick_menu(harpoon:list())
+      end, { desc = 'Toggle Harpoon quick menu' })
+
+      -- Clear Harpoon list
+      vim.keymap.set('n', '<leader>hc', function()
+        harpoon:list():clear()
+        print 'Harpoon list cleared'
+      end, { desc = 'Clear Harpoon list' })
+
+      -- Navigate through Harpoon list
+      vim.keymap.set('n', '<C-P>', function()
+        harpoon:list():prev()
+      end, { desc = 'Go to previous Harpoon file' })
+      vim.keymap.set('n', '<C-N>', function()
+        harpoon:list():next()
+      end, { desc = 'Go to next Harpoon file' })
+
+      -- Select specific files in Harpoon list
+      for i = 1, 9 do
+        vim.keymap.set('n', '<leader>' .. i, function()
+          harpoon:list():select(i)
+        end, { desc = 'Select Harpoon file ' .. i })
+      end
+    end,
+  },
   {
     'mfussenegger/nvim-dap',
     dependencies = { 'nvim-neotest/nvim-nio', 'mfussenegger/nvim-dap-python', 'rcarriga/nvim-dap-ui', 'theHamsta/nvim-dap-virtual-text' },
@@ -640,6 +769,13 @@ require('lazy').setup({
       --    That is to say, every time a new file is opened that is associated with
       --    an lsp (for example, opening `main.rs` is associated with `rust_analyzer`) this
       --    function will be executed to configure the current buffer
+      vim.diagnostic.config {
+        virtual_text = false, -- This disables inline diagnostics
+        signs = false, -- This disables gutter signs
+        underline = false, -- This disables underlining the text
+        update_in_insert = false,
+        severity_sort = false,
+      }
       vim.api.nvim_create_autocmd('LspAttach', {
         group = vim.api.nvim_create_augroup('kickstart-lsp-attach', { clear = true }),
         callback = function(event)
@@ -791,7 +927,7 @@ require('lazy').setup({
     end,
   },
 
-  { -- Autoformat
+  {
     'stevearc/conform.nvim',
     opts = {
       notify_on_error = false,
@@ -801,14 +937,44 @@ require('lazy').setup({
       },
       formatters_by_ft = {
         lua = { 'stylua' },
-        -- Conform can also run multiple formatters sequentially
-        python = { 'isort', 'black' },
-        --
-        -- You can use a sub-list to tell conform to run *until* a formatter
-        -- is found.
-        -- javascript = { { "prettierd", "prettier" } },
+        python = { 'black' },
+        htmldjango = { 'djlint' },
+        html = { 'djlint' },
+        css = { 'prettier' },
+        javascript = { 'prettier' },
+        -- You can also add TypeScript if needed
+        -- typescript = { 'prettier' },
+      },
+      formatters = {
+        djlint = {
+          command = 'djlint',
+          args = {
+            '--reformat',
+            '-',
+            '--indent',
+            '2',
+            '--profile',
+            'django',
+          },
+        },
+        black = {
+          command = 'black',
+          args = { '--line-length', '100', '--quiet', '-' },
+        },
+        prettier = {
+          command = 'prettier',
+          args = { '--stdin-filepath', '$FILENAME' },
+        },
       },
     },
+    config = function(_, opts)
+      require('conform').setup(opts)
+      vim.filetype.add {
+        pattern = {
+          ['.*/templates/.*%.html'] = 'htmldjango',
+        },
+      }
+    end,
   },
 
   { -- Autocompletion
@@ -1226,7 +1392,136 @@ _G.clear_snippets = function()
 end
 
 -- Set up keymaps
-vim.api.nvim_set_keymap('n', '<leader>sa', ':lua add_snippet_normal()<CR>', { noremap = true, silent = true })
-vim.api.nvim_set_keymap('v', '<leader>sa', ':<C-U>lua add_snippet_visual()<CR>', { noremap = true, silent = true })
-vim.api.nvim_set_keymap('n', '<leader>sv', ':lua view_snippets()<CR>', { noremap = true, silent = true })
-vim.api.nvim_set_keymap('n', '<leader>sc', ':lua clear_snippets()<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>we', ':lua add_snippet_normal()<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('v', '<leader>we', ':<C-U>lua add_snippet_visual()<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>wr', ':lua view_snippets()<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>wq', ':lua clear_snippets()<CR>', { noremap = true, silent = true })
+
+vim.filetype.add {
+  pattern = {
+    ['.*/templates/.*%.html'] = 'htmldjango',
+  },
+}
+
+vim.keymap.set('n', '<leader>f', function()
+  require('conform').format { async = true, lsp_fallback = true }
+end, { desc = 'Format buffer' })
+
+-- Auto Commit Message
+local M = {}
+
+function M.generate_commit_message()
+  -- Check API key
+  local api_key = os.getenv 'GROQ_API_KEY'
+  if not api_key then
+    vim.api.nvim_echo({ { 'GROQ_API_KEY environment variable is not set', 'ErrorMsg' } }, true, {})
+    return
+  end
+
+  -- Capture Git diff
+  local diff_win = vim.fn.winnr 'j'
+  vim.cmd(diff_win .. 'wincmd w')
+  local diff_content = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), '\n')
+
+  -- Prepare API request with specific format instructions
+  local request_body = vim.fn.json_encode {
+    model = 'llama-3.1-70b-versatile',
+    messages = {
+      {
+        role = 'system',
+        content = 'You are a Principal Machine Learning Engineer tasked with generating concise and informative commit messages. Follow the specified format strictly.',
+      },
+      {
+        role = 'user',
+        content = [[
+Generate a commit message based on the following Git diff. The message MUST follow this exact format:
+
+High level, short, one line summary of what was changed in this commit
+
+- Change thing 1 to thing 2 in the database call
+- Updated the architecture to use function based calls instead of class based calls
+- Updated the new logo and brand copy
+etc.
+
+Example 1:
+Refactored user authentication system
+
+- Replaced JWT with session-based authentication
+- Updated database schema for user sessions
+- Implemented rate limiting on login attempts
+- Added password complexity requirements
+etc.
+
+Example 2:
+Optimized image processing pipeline
+
+- Implemented parallel processing for bulk image uploads
+- Reduced memory usage by 30% in image resizing function
+- Added support for WebP format
+- Updated error handling for corrupt image files
+etc.
+
+Do not say things like "Here is a commit message following the specified format:" or "I've come up with a concise message that follows your specifications:". Just just right into the commit message.
+
+The commit message should be proportional to the number of changes made. So if there were only a few lines changed, it's OK to just have a one line summary, but if many files were changed, try to find the commonality between them all.
+
+Now, generate a commit message for this Git diff:
+
+]] .. diff_content,
+      },
+    },
+  }
+
+  local curl_command = string.format(
+    "curl -s -X POST 'https://api.groq.com/openai/v1/chat/completions' "
+      .. "-H 'Authorization: Bearer %s' "
+      .. "-H 'Content-Type: application/json' "
+      .. "-d '%s'",
+    api_key,
+    request_body:gsub("'", "'\\''") -- Escape single quotes for shell
+  )
+
+  -- Execute API call
+  local handle = io.popen(curl_command)
+  local response = handle:read '*a'
+  handle:close()
+
+  if response == '' then
+    vim.api.nvim_echo({ { 'API call failed', 'ErrorMsg' } }, true, {})
+    return
+  end
+
+  -- Parse API response
+  local ok, parsed_response = pcall(vim.fn.json_decode, response)
+  if not ok then
+    vim.api.nvim_echo({ { 'Failed to parse API response', 'ErrorMsg' } }, true, {})
+    return
+  end
+
+  -- Extract commit message
+  if not parsed_response.choices or not parsed_response.choices[1] or not parsed_response.choices[1].message then
+    vim.api.nvim_echo({ { 'Unexpected API response structure', 'ErrorMsg' } }, true, {})
+    return
+  end
+  local commit_message = parsed_response.choices[1].message.content
+
+  -- Insert commit message
+  local commit_win = vim.fn.winnr 'k'
+  vim.cmd(commit_win .. 'wincmd w')
+  local cursor_pos = vim.api.nvim_win_get_cursor(0)
+  local row, col = cursor_pos[1] - 1, cursor_pos[2]
+  vim.api.nvim_buf_set_text(0, row, col, row, col, vim.split(commit_message, '\n'))
+
+  vim.api.nvim_echo({ { 'Commit message generated and inserted', 'Normal' } }, true, {})
+end
+
+-- Attach the function to the global plugin table
+if not _G.myplugin then
+  _G.myplugin = {}
+end
+_G.myplugin.generate_commit_message = M.generate_commit_message
+
+-- Set up keymap
+vim.api.nvim_set_keymap('n', '<leader>gai', ':lua _G.myplugin.generate_commit_message()<CR>', { noremap = true, silent = false })
+
+return M
