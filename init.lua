@@ -200,6 +200,21 @@ vim.api.nvim_set_keymap('n', '<leader>gl', ':Neogit log<CR>', { noremap = true, 
 vim.api.nvim_set_keymap('n', 'yui', '0ggVGY', { desc = 'Copy entire file' })
 vim.api.nvim_set_keymap('n', 'yup', '0ggVGp', { desc = 'Paste over entire file' })
 
+local map = vim.api.nvim_set_keymap
+local opts = { noremap = true, silent = true }
+
+-- Use Alt + arrow keys to resize windows
+map('n', '<A-Up>', ':resize +2<CR>', opts)
+map('n', '<A-Down>', ':resize -2<CR>', opts)
+map('n', '<A-Left>', ':vertical resize -2<CR>', opts)
+map('n', '<A-Right>', ':vertical resize +2<CR>', opts)
+
+-- Optionally, add Ctrl + Alt + arrow keys for larger resizing
+map('n', '<C-A-Up>', ':resize +10<CR>', opts)
+map('n', '<C-A-Down>', ':resize -10<CR>', opts)
+map('n', '<C-A-Left>', ':vertical resize -10<CR>', opts)
+map('n', '<C-A-Right>', ':vertical resize +10<CR>', opts)
+
 vim.api.nvim_create_user_command('Fmt', function()
   local filepath = vim.fn.expand '%:p'
   vim.fn.system('pre-commit run --files ' .. filepath)
@@ -272,6 +287,7 @@ require('lazy').setup({
         width = 30,
         mappings = {
           ['<space>'] = 'none',
+          ['P'] = { 'toggle_preview', config = { use_float = true, use_image_nvim = true } },
         },
       },
     },
@@ -342,7 +358,7 @@ require('lazy').setup({
 
       -- Basic Harpoon keymaps
       -- Add current file to Harpoon list
-      vim.keymap.set('n', '<leader>h', function()
+      vim.keymap.set('n', '<leader>ha', function()
         harpoon:list():add()
       end, { desc = 'Add file to Harpoon' })
 
@@ -515,25 +531,6 @@ require('lazy').setup({
     end,
   },
 
-  {
-    'linux-cultist/venv-selector.nvim',
-    dependencies = { 'neovim/nvim-lspconfig', 'nvim-telescope/telescope.nvim', 'mfussenegger/nvim-dap-python' },
-    config = function()
-      require('venv-selector').setup {
-        -- Your options go here
-        -- name = "venv",
-        -- auto_refresh = false
-      }
-    end,
-    event = 'VeryLazy', -- Optional: needed only if you want to type `:VenvSelect` without a keymapping
-    keys = {
-      -- Keymap to open VenvSelector to pick a venv.
-      { '<leader>vs', '<cmd>VenvSelect<cr>' },
-      -- Keymap to retrieve the venv from a cache (the one previously used for the same project directory).
-      { '<leader>vc', '<cmd>VenvSelectCached<cr>' },
-    },
-  },
-
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
   'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
 
@@ -599,15 +596,6 @@ require('lazy').setup({
     event = 'VimEnter', -- Sets the loading event to 'VimEnter'
     config = function() -- This is the function that runs, AFTER loading
       require('which-key').setup()
-
-      -- Document existing key chains
-      require('which-key').register {
-        ['<leader>c'] = { name = '[C]ode', _ = 'which_key_ignore' },
-        ['<leader>d'] = { name = '[D]ocument', _ = 'which_key_ignore' },
-        ['<leader>r'] = { name = '[R]ename', _ = 'which_key_ignore' },
-        ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
-        ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
-      }
     end,
   },
 
@@ -1418,6 +1406,9 @@ function M.generate_commit_message()
     return
   end
 
+  -- Capture the current line as context
+  local current_line = vim.api.nvim_get_current_line()
+
   -- Capture Git diff
   local diff_win = vim.fn.winnr 'j'
   vim.cmd(diff_win .. 'wincmd w')
@@ -1434,9 +1425,11 @@ function M.generate_commit_message()
       {
         role = 'user',
         content = [[
-Generate a commit message based on the following Git diff. The message MUST follow this exact format:
+Generate a commit message based on the following Git diff and the provided context. The message MUST follow this exact format:
 
-High level, short, one line summary of what was changed in this commit
+]]
+          .. current_line
+          .. [[
 
 - Change thing 1 to thing 2 in the database call
 - Updated the architecture to use function based calls instead of class based calls
@@ -1461,13 +1454,18 @@ Optimized image processing pipeline
 - Updated error handling for corrupt image files
 etc.
 
-Do not say things like "Here is a commit message following the specified format:" or "I've come up with a concise message that follows your specifications:". Just just right into the commit message.
+Do not say things like "Here is a commit message following the specified format:" or "I've come up with a concise message that follows your specifications:". Just jump right into the commit message.
 
 The commit message should be proportional to the number of changes made. So if there were only a few lines changed, it's OK to just have a one line summary, but if many files were changed, try to find the commonality between them all.
 
+Use the provided context (]]
+          .. current_line
+          .. [[) as the high-level summary, and generate more detailed points based on the Git diff.
+
 Now, generate a commit message for this Git diff:
 
-]] .. diff_content,
+]]
+          .. diff_content,
       },
     },
   }
