@@ -711,7 +711,7 @@ require('lazy').setup({
     end,
   },
 
-{ -- LSP Configuration & Plugins
+  {
     'neovim/nvim-lspconfig',
     dependencies = {
       'williamboman/mason.nvim',
@@ -765,11 +765,14 @@ require('lazy').setup({
           init_options = {
             settings = {
               args = {
-                "--select=E,F,W,I,N,D,UP,ANN,S,BLE,B,A,COM,C4,T20,PT,Q,SIM,ARG,ERA,PL,RUF",
-                "--line-length=88",
-              }
-            }
-          }
+                '--select=E,F,W,I,N,D,UP,ANN,S,BLE,B,A,COM,C4,T20,PT,Q,SIM,ARG,ERA,PL,RUF',
+                '--extend-select=YTT,TCH,Q,EM,ICN',
+                '--ignore=E501,E203,E402',
+                '--line-length=100',
+                '--fix',
+              },
+            },
+          },
         },
         pyright = {
           on_attach = function(client, bufnr)
@@ -783,8 +786,8 @@ require('lazy').setup({
                 useLibraryCodeForTypes = true,
                 diagnosticMode = 'openFilesOnly',
                 typeCheckingMode = 'basic',
-              }
-            }
+              },
+            },
           },
         },
         lua_ls = {
@@ -796,16 +799,68 @@ require('lazy').setup({
             },
           },
         },
+        -- Replace or add this configuration
+        ['typescript-language-server'] = {
+          filetypes = { 'typescript', 'typescriptreact', 'typescript.tsx', 'javascript', 'javascriptreact', 'javascript.jsx' },
+          cmd = { 'typescript-language-server', '--stdio' },
+          init_options = {
+            hostInfo = 'neovim',
+          },
+          settings = {
+            typescript = {
+              inlayHints = {
+                includeInlayParameterNameHints = 'all',
+                includeInlayParameterNameHintsWhenArgumentMatchesName = false,
+                includeInlayFunctionParameterTypeHints = true,
+                includeInlayVariableTypeHints = true,
+                includeInlayPropertyDeclarationTypeHints = true,
+                includeInlayFunctionLikeReturnTypeHints = true,
+                includeInlayEnumMemberValueHints = true,
+              },
+            },
+            javascript = {
+              inlayHints = {
+                includeInlayParameterNameHints = 'all',
+                includeInlayParameterNameHintsWhenArgumentMatchesName = false,
+                includeInlayFunctionParameterTypeHints = true,
+                includeInlayVariableTypeHints = true,
+                includeInlayPropertyDeclarationTypeHints = true,
+                includeInlayFunctionLikeReturnTypeHints = true,
+                includeInlayEnumMemberValueHints = true,
+              },
+            },
+          },
+        },
       }
 
       require('mason').setup()
+      require('mason-lspconfig').setup {
+        ensure_installed = { 'typescript-language-server' },
+      }
 
+      -- Ensure the server is installed via Mason
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
-        'stylua',
-        'ruff',
+        'typescript-language-server',
       })
-      require('mason-tool-installer').setup { ensure_installed = ensure_installed }
+
+      require('mason-tool-installer').setup {
+        ensure_installed = ensure_installed,
+        auto_update = false,
+        run_on_start = true,
+      }
+
+      require('lspconfig')['typescript-language-server'].setup(servers['typescript-language-server'])
+
+      -- Update or add this section to your existing configuration
+      vim.api.nvim_create_autocmd('FileType', {
+        pattern = { 'typescript', 'javascript', 'typescriptreact', 'javascriptreact' },
+        callback = function()
+          vim.keymap.set('n', '<leader>ri', ':TypescriptAddMissingImports<CR>', { buffer = true })
+          vim.keymap.set('n', '<leader>ro', ':TypescriptOrganizeImports<CR>', { buffer = true })
+          vim.keymap.set('n', '<leader>ru', ':TypescriptRemoveUnused<CR>', { buffer = true })
+        end,
+      })
 
       require('mason-lspconfig').setup {
         handlers = {
@@ -817,14 +872,14 @@ require('lazy').setup({
         },
       }
 
-      vim.api.nvim_create_autocmd("BufWritePre", {
-        pattern = "*.py",
+      vim.api.nvim_create_autocmd('BufWritePre', {
+        pattern = '*.py',
         callback = function()
-          vim.lsp.buf.format({ async = false, name = "ruff_lsp" })
+          vim.lsp.buf.format { async = false, name = 'ruff_lsp' }
         end,
       })
 
-      vim.api.nvim_set_keymap('n', '<leader>rf', '<cmd>lua vim.lsp.buf.format({name = "ruff_lsp"})<CR>', {noremap = true, silent = true})
+      vim.api.nvim_set_keymap('n', '<leader>rf', '<cmd>lua vim.lsp.buf.format({name = "ruff_lsp"})<CR>', { noremap = true, silent = true })
     end,
   },
   {
@@ -1111,7 +1166,39 @@ require('lazy').setup({
     },
   },
 })
+vim.filetype.add {
+  extension = {
+    jsx = 'javascriptreact',
+    tsx = 'typescriptreact',
+  },
+  filename = {
+    ['next.config.js'] = 'javascript',
+    ['next.config.mjs'] = 'javascript',
+  },
+  pattern = {
+    ['%.js'] = {
+      priority = -1,
+      function(path, bufnr)
+        return require('guess-indent').guess_indent(bufnr).type == 'space' and 'javascript' or 'javascriptreact'
+      end,
+    },
+    ['%.ts'] = {
+      priority = -1,
+      function(path, bufnr)
+        return require('guess-indent').guess_indent(bufnr).type == 'space' and 'typescript' or 'typescriptreact'
+      end,
+    },
+  },
+}
 
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = { 'javascriptreact', 'typescriptreact' },
+  callback = function()
+    vim.keymap.set('n', '<leader>ri', ':TypescriptAddMissingImports<CR>', { buffer = true })
+    vim.keymap.set('n', '<leader>ro', ':TypescriptOrganizeImports<CR>', { buffer = true })
+    vim.keymap.set('n', '<leader>ru', ':TypescriptRemoveUnused<CR>', { buffer = true })
+  end,
+})
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
 local function open_github(start_line, end_line)
