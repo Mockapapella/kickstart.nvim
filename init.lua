@@ -363,9 +363,9 @@ require('lazy').setup({
       end, { desc = 'Add file to Harpoon' })
 
       -- Toggle quick menu
-      vim.keymap.set('n', '<leader>e', function()
-        harpoon.ui:toggle_quick_menu(harpoon:list())
-      end, { desc = 'Toggle Harpoon quick menu' })
+      -- vim.keymap.set('n', '<leader>e', function()
+      --   harpoon.ui:toggle_quick_menu(harpoon:list())
+      -- end, { desc = 'Toggle Harpoon quick menu' })
 
       -- Clear Harpoon list
       vim.keymap.set('n', '<leader>hc', function()
@@ -857,7 +857,17 @@ require('lazy').setup({
       local servers = {
         -- clangd = {},
         -- gopls = {},
-        -- pyright = {},
+        pyright = {
+          settings = {
+            python = {
+              analysis = {
+                autoSearchPaths = true,
+                useLibraryCodeForTypes = true,
+                diagnosticMode = 'workspace',
+              },
+            },
+          },
+        },
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
@@ -1391,10 +1401,9 @@ vim.filetype.add {
   },
 }
 
-vim.keymap.set('n', '<leader>f', function()
+vim.keymap.set('n', '<leader>F', function()
   require('conform').format { async = true, lsp_fallback = true }
 end, { desc = 'Format buffer' })
-
 -- Auto Commit Message
 local M = {}
 
