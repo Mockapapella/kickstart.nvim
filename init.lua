@@ -892,7 +892,7 @@ require('lazy').setup({
       },
       formatters_by_ft = {
         lua = { 'stylua' },
-        python = { 'black' },
+        python = { 'ruff_format' }, -- Changed from 'black' to 'ruff_format'
         htmldjango = { 'djlint' },
         html = { 'djlint' },
         css = { 'prettier' },
@@ -912,9 +912,15 @@ require('lazy').setup({
             'django',
           },
         },
-        black = {
-          command = 'black',
-          args = { '--line-length', '100', '--quiet', '-' },
+        ruff_format = {
+          command = 'ruff',
+          args = {
+            'format',
+            '--line-length',
+            '100',
+            '--quiet',
+            '-',
+          },
         },
         prettier = {
           command = 'prettier',
@@ -1000,6 +1006,7 @@ require('lazy').setup({
           --  This will auto-import if your LSP supports it.
           --  This will expand snippets if the LSP sent a snippet.
           ['<C-y>'] = cmp.mapping.confirm { select = true },
+          ['<CR>'] = cmp.mapping.confirm { select = true },
 
           -- Manually trigger a completion from nvim-cmp.
           --  Generally you don't need this, because nvim-cmp will display
@@ -1263,25 +1270,52 @@ local function get_visual_selection()
   return table.concat(lines, '\n')
 end
 
+-- Helper function to get total line count of a file
+local function get_file_line_count(file_path)
+  local file = io.open(file_path, 'r')
+  if not file then
+    return 0
+  end
+  local line_count = 0
+  for _ in file:lines() do
+    line_count = line_count + 1
+  end
+  file:close()
+  return line_count
+end
+
 -- Add snippet functions (normal and visual mode)
 _G.add_snippet_normal = function()
+  local line_num = vim.fn.line '.'
   local code = vim.api.nvim_get_current_line()
   local current_file = vim.fn.expand '%:p'
+  local total_lines = get_file_line_count(current_file)
   local snippet = {
     directory = current_file,
     stat = vim.fn.system('stat ' .. current_file):gsub('\n', ' '),
     code = code,
+    start_line = line_num,
+    end_line = line_num,
+    total_lines = total_lines,
   }
   table.insert(snippet_buffer, snippet)
 end
 
 _G.add_snippet_visual = function()
-  local code = get_visual_selection()
+  local start_pos = vim.fn.getpos "'<"
+  local end_pos = vim.fn.getpos "'>"
+  local start_line, end_line = start_pos[2], end_pos[2]
+  local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+  local code = table.concat(lines, '\n')
   local current_file = vim.fn.expand '%:p'
+  local total_lines = get_file_line_count(current_file)
   local snippet = {
     directory = current_file,
     stat = vim.fn.system('stat ' .. current_file):gsub('\n', ' '),
     code = code,
+    start_line = start_line,
+    end_line = end_line,
+    total_lines = total_lines,
   }
   table.insert(snippet_buffer, snippet)
 end
@@ -1353,15 +1387,23 @@ _G.view_snippets = function()
   table.insert(content, string.rep('-', 40))
   table.insert(content, '')
 
-  -- Add snippets to content
+  -- Add snippets to content with line numbers and total line count
   for i, snippet in ipairs(snippet_buffer) do
     table.insert(content, 'Snippet ' .. i .. ':')
     table.insert(content, 'Directory: ' .. snippet.directory)
     table.insert(content, 'Stat: ' .. snippet.stat)
+    table.insert(content, string.format('Total lines in file: %d', snippet.total_lines))
     table.insert(content, 'Code:')
-    for _, line in ipairs(vim.split(snippet.code, '\n')) do
-      table.insert(content, line)
+
+    -- Split the code into lines and add line numbers
+    local lines = vim.split(snippet.code, '\n')
+    local current_line = snippet.start_line
+
+    for _, line in ipairs(lines) do
+      table.insert(content, string.format('%6d | %s', current_line, line))
+      current_line = current_line + 1
     end
+
     table.insert(content, '')
     table.insert(content, string.rep('-', 40))
     table.insert(content, '')
