@@ -164,7 +164,7 @@ vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
 -- Diagnostic keymaps
 vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous [D]iagnostic message' })
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next [D]iagnostic message' })
-vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
+vim.keymap.set('n', '<leader>r', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
@@ -258,7 +258,17 @@ vim.opt.rtp:prepend(lazypath)
 --
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
-  -- Neovim debugger
+  {
+    'brenoprata10/nvim-highlight-colors',
+    opts = {
+      render = 'background', -- or 'foreground' or 'virtual'
+      enable_named_colors = true,
+      enable_tailwind = false,
+    },
+    config = function(_, opts)
+      require('nvim-highlight-colors').setup(opts)
+    end,
+  },
   {
     'nvim-neo-tree/neo-tree.nvim',
     branch = 'v3.x',
@@ -325,7 +335,7 @@ require('lazy').setup({
       provider = 'claude',
       claude = {
         endpoint = 'https://api.anthropic.com',
-        model = 'claude-3-5-sonnet-20240620',
+        model = 'claude-3-5-sonnet-20241022',
         temperature = 0,
         max_tokens = 4096,
       },
@@ -758,7 +768,7 @@ require('lazy').setup({
       capabilities = vim.tbl_deep_extend('force', capabilities, require('cmp_nvim_lsp').default_capabilities())
 
       local servers = {
-        ruff_lsp = {
+        ruff = {
           on_attach = function(client, bufnr)
             client.server_capabilities.hoverProvider = false
           end,
@@ -1439,127 +1449,143 @@ end, { desc = 'Format buffer' })
 local M = {}
 
 function M.generate_commit_message()
-  -- Check API key
-  local api_key = os.getenv 'GROQ_API_KEY'
+  local api_key = os.getenv 'HYPERBOLIC_API_KEY'
   if not api_key then
-    vim.api.nvim_echo({ { 'GROQ_API_KEY environment variable is not set', 'ErrorMsg' } }, true, {})
+    vim.api.nvim_echo({ {
+      'HYPERBOLIC_API_KEY environment variable is not set',
+      'ErrorMsg',
+    } }, true, {})
     return
   end
 
-  -- Capture the current line as context
   local current_line = vim.api.nvim_get_current_line()
-
-  -- Capture Git diff
   local diff_win = vim.fn.winnr 'j'
   vim.cmd(diff_win .. 'wincmd w')
   local diff_content = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), '\n')
 
-  -- Prepare API request with specific format instructions
+  local prompt_template = [[
+Write a commit message for this git diff.
+
+]] .. current_line .. [[
+
+<Example 1>
+Update database connection handling
+
+- Switch to connection pooling
+- Add timeout settings
+- Log failed connections
+
+</Example 1>
+
+<Example 2>
+Fix image upload validation
+
+- Enforce maximum file size of 5MB for uploaded images
+- Restrict allowed file types to .jpg, .png, .gif
+- Return user-friendly error messages for validation failures
+- Implement asynchronous upload processing to improve user experience
+- Auto-rotate images based on EXIF data
+- Optimize image compression on server to reduce file sizes
+- Add client-side preview of uploaded images
+- Integrate with 3rd party service for advanced image optimization
+- Scan uploaded files for viruses/malware and log failures
+- Update API docs to reflect new image upload requirements
+
+</Example 2>
+
+<Example 3>
+Fix typo in footer
+</Example 3>
+
+
+Keep messages succinct. If there's a single small change, use a one-line message (like in Example 3). For multiple changes, list the key updates (like in Examples 1 and 2).
+
+Do not start your message with things like "Here is a good commit message for this diff:" -- just get straight to writing the commit message.
+
+Here's the Git diff:
+
+]] .. diff_content
+
   local request_body = vim.fn.json_encode {
-    model = 'llama-3.1-70b-versatile',
     messages = {
       {
         role = 'system',
-        content = 'You are a Principal Machine Learning Engineer tasked with generating concise and informative commit messages. Follow the specified format strictly.',
+        content = '<|im_start|>system\nYou are a Principal Machine Learning Engineer tasked with generating commit messages. Write with clarity and persuasion. Keep sentences simple. Avoid marketing speak purple prose, hyperbole, and flowery language. Use ordinary words where possible, and technical terms only when needed for precision. Remember: simple writing is persuasive writing.<|im_end|>',
       },
       {
         role = 'user',
-        content = [[
-Generate a commit message based on the following Git diff and the provided context. The message MUST follow this exact format:
-
-]]
-          .. current_line
-          .. [[
-
-- Change thing 1 to thing 2 in the database call
-- Updated the architecture to use function based calls instead of class based calls
-- Updated the new logo and brand copy
-etc.
-
-Example 1:
-Refactored user authentication system
-
-- Replaced JWT with session-based authentication
-- Updated database schema for user sessions
-- Implemented rate limiting on login attempts
-- Added password complexity requirements
-etc.
-
-Example 2:
-Optimized image processing pipeline
-
-- Implemented parallel processing for bulk image uploads
-- Reduced memory usage by 30% in image resizing function
-- Added support for WebP format
-- Updated error handling for corrupt image files
-etc.
-
-Do not say things like "Here is a commit message following the specified format:" or "I've come up with a concise message that follows your specifications:". Just jump right into the commit message.
-
-The commit message should be proportional to the number of changes made. So if there were only a few lines changed, it's OK to just have a one line summary, but if many files were changed, try to find the commonality between them all.
-
-Use the provided context (]]
-          .. current_line
-          .. [[) as the high-level summary, and generate more detailed points based on the Git diff.
-
-Now, generate a commit message for this Git diff:
-
-]]
-          .. diff_content,
+        content = '<|im_start|>user\n' .. prompt_template .. '<|im_end|>',
       },
     },
+    model = 'Qwen/Qwen2.5-Coder-32B-Instruct',
+    max_tokens = 8192,
+    temperature = 0.7,
+    top_p = 0.8,
+    top_k = 20,
+    repetition_penalty = 1.05,
   }
 
   local curl_command = string.format(
-    "curl -s -X POST 'https://api.groq.com/openai/v1/chat/completions' "
+    "curl -s -X POST 'https://api.hyperbolic.xyz/v1/chat/completions' "
       .. "-H 'Authorization: Bearer %s' "
       .. "-H 'Content-Type: application/json' "
       .. "-d '%s'",
     api_key,
-    request_body:gsub("'", "'\\''") -- Escape single quotes for shell
+    request_body:gsub("'", "'\\''")
   )
 
-  -- Execute API call
+  -- Write request to debug file
+  local debug_file = io.open('/tmp/nvim_commit_debug.json', 'w')
+  if debug_file then
+    debug_file:write 'REQUEST:\n'
+    debug_file:write(request_body)
+    debug_file:write '\n\nRESPONSE:\n'
+  end
+
   local handle = io.popen(curl_command)
   local response = handle:read '*a'
   handle:close()
+
+  -- Append response to debug file
+  if debug_file then
+    debug_file:write(response)
+    debug_file:close()
+  end
 
   if response == '' then
     vim.api.nvim_echo({ { 'API call failed', 'ErrorMsg' } }, true, {})
     return
   end
 
-  -- Parse API response
   local ok, parsed_response = pcall(vim.fn.json_decode, response)
   if not ok then
     vim.api.nvim_echo({ { 'Failed to parse API response', 'ErrorMsg' } }, true, {})
+    vim.api.nvim_echo({ { 'Raw response: ' .. response, 'Normal' } }, true, {})
     return
   end
 
-  -- Extract commit message
-  if not parsed_response.choices or not parsed_response.choices[1] or not parsed_response.choices[1].message then
-    vim.api.nvim_echo({ { 'Unexpected API response structure', 'ErrorMsg' } }, true, {})
+  if not parsed_response.choices or not parsed_response.choices[1].message then
+    vim.api.nvim_echo({ { 'Missing message in API response', 'ErrorMsg' } }, true, {})
     return
   end
-  local commit_message = parsed_response.choices[1].message.content
 
-  -- Insert commit message
+  local commit_message = parsed_response.choices[1].message.content:gsub('<|im_start|>assistant\n', ''):gsub('<|im_end|>', '')
   local commit_win = vim.fn.winnr 'k'
   vim.cmd(commit_win .. 'wincmd w')
+
   local cursor_pos = vim.api.nvim_win_get_cursor(0)
   local row, col = cursor_pos[1] - 1, cursor_pos[2]
   vim.api.nvim_buf_set_text(0, row, col, row, col, vim.split(commit_message, '\n'))
-
-  vim.api.nvim_echo({ { 'Commit message generated and inserted', 'Normal' } }, true, {})
 end
 
--- Attach the function to the global plugin table
 if not _G.myplugin then
   _G.myplugin = {}
 end
 _G.myplugin.generate_commit_message = M.generate_commit_message
 
--- Set up keymap
-vim.api.nvim_set_keymap('n', '<leader>gai', ':lua _G.myplugin.generate_commit_message()<CR>', { noremap = true, silent = false })
+vim.api.nvim_set_keymap('n', '<leader>gai', ':lua _G.myplugin.generate_commit_message()<CR>', {
+  noremap = true,
+  silent = false,
+})
 
 return M
