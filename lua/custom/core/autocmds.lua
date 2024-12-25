@@ -42,16 +42,6 @@ function M.setup()
       ['.*/templates/.*%.html'] = 'htmldjango',
     },
   })
-
-  -- TypeScript specific keymaps
-  vim.api.nvim_create_autocmd('FileType', {
-    pattern = { 'javascriptreact', 'typescriptreact' },
-    callback = function()
-      vim.keymap.set('n', '<leader>ri', ':TypescriptAddMissingImports<CR>', { buffer = true })
-      vim.keymap.set('n', '<leader>ro', ':TypescriptOrganizeImports<CR>', { buffer = true })
-      vim.keymap.set('n', '<leader>ru', ':TypescriptRemoveUnused<CR>', { buffer = true })
-    end,
-  })
 end
 
 return M

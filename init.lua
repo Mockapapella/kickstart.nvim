@@ -1,26 +1,30 @@
---[[
-=====================================================================
-==================== READ THIS BEFORE CONTINUING ====================
-=====================================================================
-========                                    .-----.          ========
-========         .----------------------.   | === |          ========
-========         |.-""""""""""""""""""-.|   |-----|          ========
-========         ||                    ||   | === |          ========
-========         ||   KICKSTART.NVIM   ||   |-----|          ========
-========         ||                    ||   | === |          ========
-========         ||                    ||   |-----|          ========
-========         ||:Tutor              ||   |:::::|          ========
-========         |'-..................-'|   |____o|          ========
-========         `"")----------------(""`   ___________      ========
-========        /::::::::::|  |::::::::::\  \ no mouse \     ========
-========       /:::========|  |==hjkl==:::\  \ required \    ========
-========      '""""""""""""'  '""""""""""""'  '""""""""""'   ========
-========                                                     ========
-=====================================================================
-=====================================================================
---]]
+-- Set essential options before loading plugins
+vim.g.mapleader = ' '
+vim.g.maplocalleader = ' '
+vim.g.have_nerd_font = true
 
--- [[ Install `lazy.nvim` plugin manager ]]
+-- Basic vim options
+vim.opt.number = true
+vim.opt.relativenumber = true
+vim.opt.mouse = 'a'
+vim.opt.showmode = false
+vim.opt.clipboard = 'unnamedplus'
+vim.opt.breakindent = true
+vim.opt.undofile = true
+vim.opt.ignorecase = true
+vim.opt.smartcase = true
+vim.opt.signcolumn = 'yes'
+vim.opt.updatetime = 250
+vim.opt.timeoutlen = 300
+vim.opt.splitright = true
+vim.opt.splitbelow = true
+vim.opt.list = true
+vim.opt.listchars = { tab = '» ', trail = '·', nbsp = '␣' }
+vim.opt.inccommand = 'split'
+vim.opt.cursorline = true
+vim.opt.scrolloff = 10
+
+-- Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath('data') .. '/lazy/lazy.nvim'
 if not vim.loop.fs_stat(lazypath) then
   local lazyrepo = 'https://github.com/folke/lazy.nvim.git'
@@ -35,11 +39,10 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
--- [[ Configure and install plugins ]]
-require('lazy').setup(require('custom'), {
+-- Configure plugins
+local plugins = require('custom')
+require('lazy').setup(plugins, {
   ui = {
-    -- If you have a Nerd Font, set icons to an empty table which will use the
-    -- default lazy.nvim defined Nerd Font icons otherwise define a unicode icons table
     icons = vim.g.have_nerd_font and {} or {
       cmd = '⌘',
       config = '🛠',

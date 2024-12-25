@@ -42,9 +42,9 @@ local servers = {
     init_options = {
       settings = {
         args = {
-          '--select=E,F,W,I,N,D,UP,ANN,S,BLE,B,A,COM,C4,T20,PT,Q,SIM,ARG,ERA,PL,RUF',
-          '--extend-select=YTT,TCH,Q,EM,ICN',
-          '--ignore=E501,E203,E402',
+          '--select=EFWINDUPANNSBLEBACOMC4T20PTQSIMARGERAPLRUF',
+          '--extend-select=YTTTCHQEMICN',
+          '--ignore=E501E203E402',
           '--line-length=100',
           '--fix',
         },
@@ -166,12 +166,12 @@ function M.setup()
   vim.api.nvim_create_autocmd('BufWritePre', {
     pattern = '*.py',
     callback = function()
-      vim.lsp.buf.format { async = false, name = 'ruff_lsp' }
+      vim.lsp.buf.format({ async = false, name = 'ruff' }) -- Changed from ruff_lsp to ruff
     end,
   })
 
   -- Format keymap
-  vim.api.nvim_set_keymap('n', '<leader>rf', '<cmd>lua vim.lsp.buf.format({name = "ruff_lsp"})<CR>', { noremap = true, silent = true })
+  vim.api.nvim_set_keymap('n', '<leader>rf', '<cmd>lua vim.lsp.buf.format({name = "ruff"})<CR>', { noremap = true, silent = true }) -- Changed from ruff_lsp to ruff
 end
 
 return M
