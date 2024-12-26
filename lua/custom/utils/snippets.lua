@@ -19,9 +19,9 @@ end
 
 -- Add snippet in normal mode
 function M.add_snippet_normal()
-  local line_num = vim.fn.line('.')
+  local line_num = vim.fn.line '.'
   local code = vim.api.nvim_get_current_line()
-  local current_file = vim.fn.expand('%:p')
+  local current_file = vim.fn.expand '%:p'
   local total_lines = get_file_line_count(current_file)
   local snippet = {
     directory = current_file,
@@ -36,12 +36,12 @@ end
 
 -- Add snippet in visual mode
 function M.add_snippet_visual()
-  local start_pos = vim.fn.getpos("'<")
-  local end_pos = vim.fn.getpos("'>")
+  local start_pos = vim.fn.getpos "'<"
+  local end_pos = vim.fn.getpos "'>"
   local start_line, end_line = start_pos[2], end_pos[2]
   local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
   local code = table.concat(lines, '\n')
-  local current_file = vim.fn.expand('%:p')
+  local current_file = vim.fn.expand '%:p'
   local total_lines = get_file_line_count(current_file)
   local snippet = {
     directory = current_file,
@@ -100,11 +100,11 @@ end
 -- View snippets
 function M.view_snippets()
   if #snippet_buffer == 0 then
-    print('No snippets in buffer.')
+    print 'No snippets in buffer.'
     return
   end
 
-  vim.cmd('vnew')
+  vim.cmd 'vnew'
   local buf = vim.api.nvim_get_current_buf()
   vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
   vim.api.nvim_buf_set_option(buf, 'swapfile', false)
@@ -152,14 +152,6 @@ function M.clear_snippets()
   local count = #snippet_buffer
   snippet_buffer = {}
   print('Snippet buffer cleared. Removed ' .. count .. ' snippets.')
-end
-
-function M.setup()
-  -- Set up keymaps
-  vim.keymap.set('n', '<leader>we', M.add_snippet_normal, { noremap = true, silent = true })
-  vim.keymap.set('v', '<leader>we', ':<C-U>lua require("custom.utils.snippets").add_snippet_visual()<CR>', { noremap = true, silent = true })
-  vim.keymap.set('n', '<leader>wr', M.view_snippets, { noremap = true, silent = true })
-  vim.keymap.set('n', '<leader>wq', M.clear_snippets, { noremap = true, silent = true })
 end
 
 return M

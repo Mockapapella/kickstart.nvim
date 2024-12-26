@@ -76,12 +76,7 @@ local servers = {
       },
     },
   },
-  ['typescript-language-server'] = {
-    filetypes = { 'typescript', 'typescriptreact', 'typescript.tsx', 'javascript', 'javascriptreact', 'javascript.jsx' },
-    cmd = { 'typescript-language-server', '--stdio' },
-    init_options = {
-      hostInfo = 'neovim',
-    },
+  tsserver = {
     settings = {
       typescript = {
         inlayHints = {
@@ -122,23 +117,21 @@ function M.setup()
 
   -- Setup Mason
   require('mason').setup()
-  require('mason-lspconfig').setup {
-    ensure_installed = { 'typescript-language-server' },
-  }
 
-  -- Ensure servers are installed
+  -- Get list of servers from our config
   local ensure_installed = vim.tbl_keys(servers or {})
-  vim.list_extend(ensure_installed, {
-    'typescript-language-server',
-  })
 
+  -- Add any additional tools to be installed
   require('mason-tool-installer').setup {
-    ensure_installed = ensure_installed,
+    ensure_installed = {
+      'typescript-language-server', -- Mason package name
+      unpack(ensure_installed), -- Add our configured servers
+    },
     auto_update = false,
     run_on_start = true,
   }
 
-  -- Setup handlers
+  -- Configure LSP
   require('mason-lspconfig').setup {
     handlers = {
       function(server_name)
@@ -148,9 +141,6 @@ function M.setup()
       end,
     },
   }
-
-  -- TypeScript specific setup
-  require('lspconfig')['typescript-language-server'].setup(servers['typescript-language-server'])
 
   -- TypeScript keymaps
   vim.api.nvim_create_autocmd('FileType', {
@@ -166,7 +156,7 @@ function M.setup()
   vim.api.nvim_create_autocmd('BufWritePre', {
     pattern = '*.py',
     callback = function()
-      vim.lsp.buf.format({ async = false, name = 'ruff' }) -- Changed from ruff_lsp to ruff
+      vim.lsp.buf.format { async = false, name = 'ruff' } -- Changed from ruff_lsp to ruff
     end,
   })
 

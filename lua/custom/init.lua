@@ -7,7 +7,7 @@ local plugins = {
       {
         'L3MON4D3/LuaSnip',
         build = (function()
-          if vim.fn.has('win32') == 1 or vim.fn.executable('make') == 0 then
+          if vim.fn.has 'win32' == 1 or vim.fn.executable 'make' == 0 then
             return
           end
           return 'make install_jsregexp'
@@ -18,8 +18,8 @@ local plugins = {
       'hrsh7th/cmp-path',
     },
     config = function()
-      local cmp = require('cmp')
-      local luasnip = require('luasnip')
+      local cmp = require 'cmp'
+      local luasnip = require 'luasnip'
       luasnip.config.setup {}
 
       cmp.setup {
@@ -80,7 +80,7 @@ local plugins = {
       render = 'background',
       enable_named_colors = true,
       enable_tailwind = false,
-    }
+    },
   },
   {
     'nvim-neo-tree/neo-tree.nvim',
@@ -112,12 +112,24 @@ local plugins = {
           ['<space>'] = 'none',
           ['P'] = { 'toggle_preview', config = { use_float = true, use_image_nvim = true } },
         },
+        position = 'left',
+        number = false,
+        relativenumber = false,
       },
     },
     config = function(_, opts)
       require('neo-tree').setup(opts)
+      -- Set up keymaps
       vim.keymap.set('n', '<leader>e', ':Neotree toggle<CR>', { noremap = true, silent = true })
       vim.keymap.set('n', '<leader>o', ':Neotree focus<CR>', { noremap = true, silent = true })
+      -- Ensure line numbers stay disabled in neo-tree windows
+      vim.api.nvim_create_autocmd('FileType', {
+        pattern = 'neo-tree',
+        callback = function()
+          vim.opt_local.number = false
+          vim.opt_local.relativenumber = false
+        end,
+      })
     end,
   },
   {
@@ -156,37 +168,6 @@ local plugins = {
     },
   },
   {
-    'ThePrimeagen/harpoon',
-    branch = 'harpoon2',
-    dependencies = { 'nvim-lua/plenary.nvim' },
-    config = function()
-      local harpoon = require('harpoon')
-      harpoon:setup()
-
-      vim.keymap.set('n', '<leader>ha', function()
-        harpoon:list():add()
-      end, { desc = 'Add file to Harpoon' })
-
-      vim.keymap.set('n', '<leader>hc', function()
-        harpoon:list():clear()
-        print('Harpoon list cleared')
-      end, { desc = 'Clear Harpoon list' })
-
-      vim.keymap.set('n', '<C-P>', function()
-        harpoon:list():prev()
-      end, { desc = 'Go to previous Harpoon file' })
-      vim.keymap.set('n', '<C-N>', function()
-        harpoon:list():next()
-      end, { desc = 'Go to next Harpoon file' })
-
-      for i = 1, 9 do
-        vim.keymap.set('n', '<leader>' .. i, function()
-          harpoon:list():select(i)
-        end, { desc = 'Select Harpoon file ' .. i })
-      end
-    end,
-  },
-  {
     'mfussenegger/nvim-dap',
     dependencies = {
       'nvim-neotest/nvim-nio',
@@ -204,8 +185,8 @@ local plugins = {
       vim.keymap.set('n', '<leader>a', ":lua require'dap'.toggle_breakpoint()<CR>")
 
       -- DAP configuration
-      local dap, dapui = require('dap'), require('dapui')
-      require('dap').set_log_level('TRACE')
+      local dap, dapui = require 'dap', require 'dapui'
+      require('dap').set_log_level 'TRACE'
 
       -- DAP UI setup
       dapui.setup()
@@ -269,7 +250,14 @@ local plugins = {
       'nvim-telescope/telescope.nvim',
       'ibhagwan/fzf-lua',
     },
-    config = true,
+    config = function()
+      require('neogit').setup()
+      -- Set up keymaps here instead of in core/keymaps.lua
+      vim.keymap.set('n', '<leader>gg', ':Neogit<CR>', { noremap = true, silent = true })
+      vim.keymap.set('n', '<leader>gd', ':DiffviewOpen<CR>', { noremap = true, silent = true })
+      vim.keymap.set('n', '<leader>gc', ':DiffviewClose<CR>', { noremap = true, silent = true })
+      vim.keymap.set('n', '<leader>gl', ':Neogit log<CR>', { noremap = true, silent = true })
+    end,
   },
   {
     'folke/which-key.nvim',
@@ -288,7 +276,7 @@ local plugins = {
         'nvim-telescope/telescope-fzf-native.nvim',
         build = 'make',
         cond = function()
-          return vim.fn.executable('make') == 1
+          return vim.fn.executable 'make' == 1
         end,
       },
       { 'nvim-telescope/telescope-ui-select.nvim' },
@@ -307,7 +295,7 @@ local plugins = {
       pcall(require('telescope').load_extension, 'ui-select')
 
       -- Add telescope keymaps here since they were incorrectly moved
-      local builtin = require('telescope.builtin')
+      local builtin = require 'telescope.builtin'
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
       vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
@@ -335,7 +323,7 @@ local plugins = {
       end, { desc = '[S]earch [/] in Open Files' })
 
       vim.keymap.set('n', '<leader>sn', function()
-        builtin.find_files { cwd = vim.fn.stdpath('config') }
+        builtin.find_files { cwd = vim.fn.stdpath 'config' }
       end, { desc = '[S]earch [N]eovim files' })
     end,
   },
@@ -396,8 +384,8 @@ local plugins = {
     'folke/tokyonight.nvim',
     priority = 1000,
     init = function()
-      vim.cmd.colorscheme('tokyonight-night')
-      vim.cmd.hi('Comment gui=none')
+      vim.cmd.colorscheme 'tokyonight-night'
+      vim.cmd.hi 'Comment gui=none'
     end,
   },
   {
@@ -411,7 +399,7 @@ local plugins = {
     config = function()
       require('mini.ai').setup { n_lines = 500 }
       require('mini.surround').setup()
-      local statusline = require('mini.statusline')
+      local statusline = require 'mini.statusline'
       statusline.setup { use_icons = vim.g.have_nerd_font }
       statusline.section_location = function()
         return '%2l:%-2v'
@@ -432,6 +420,24 @@ local plugins = {
     },
     config = function(_, opts)
       require('nvim-treesitter.configs').setup(opts)
+    end,
+  },
+  -- Add snippets as a local plugin
+  {
+    dir = vim.fn.stdpath('config') .. '/lua/custom/utils',
+    name = 'snippets',
+    lazy = false,  -- Load immediately
+    priority = 1000,  -- High priority to load early
+    config = function()
+      -- Set up keymaps here instead of in snippets.lua
+      local snippets = require('custom.utils.snippets')
+      -- Store in global for access from keymaps
+      _G.snippets = snippets
+      -- Set up keymaps
+      vim.keymap.set('n', '<leader>we', function() snippets.add_snippet_normal() end, { noremap = true, silent = true })
+      vim.keymap.set('v', '<leader>we', function() snippets.add_snippet_visual() end, { noremap = true, silent = true })
+      vim.keymap.set('n', '<leader>wr', function() snippets.view_snippets() end, { noremap = true, silent = true })
+      vim.keymap.set('n', '<leader>wq', function() snippets.clear_snippets() end, { noremap = true, silent = true })
     end,
   },
 }

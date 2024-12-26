@@ -1,6 +1,8 @@
--- Set essential options before loading plugins
+-- Set leader key first, before anything else
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
+
+-- Other essential options
 vim.g.have_nerd_font = true
 
 -- Basic vim options
@@ -25,22 +27,22 @@ vim.opt.cursorline = true
 vim.opt.scrolloff = 10
 
 -- Bootstrap lazy.nvim
-local lazypath = vim.fn.stdpath('data') .. '/lazy/lazy.nvim'
+local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
 if not vim.loop.fs_stat(lazypath) then
   local lazyrepo = 'https://github.com/folke/lazy.nvim.git'
-  vim.fn.system({
+  vim.fn.system {
     'git',
     'clone',
     '--filter=blob:none',
     '--branch=stable',
     lazyrepo,
     lazypath,
-  })
+  }
 end
 vim.opt.rtp:prepend(lazypath)
 
 -- Configure plugins
-local plugins = require('custom')
+local plugins = require 'custom'
 require('lazy').setup(plugins, {
   ui = {
     icons = vim.g.have_nerd_font and {} or {
@@ -59,6 +61,18 @@ require('lazy').setup(plugins, {
       lazy = '💤',
     },
   },
+})
+
+-- Initialize core modules after plugins are loaded
+vim.api.nvim_create_autocmd('User', {
+  pattern = 'VeryLazy',  -- Use VeryLazy instead of LazyDone for earlier initialization
+  callback = function()
+    -- Load core modules
+    require('custom.core.options')
+    require('custom.core.keymaps')
+    require('custom.core.autocmds').setup()
+    require('custom.utils.git').setup()
+  end,
 })
 
 -- vim: ts=2 sts=2 sw=2 et
