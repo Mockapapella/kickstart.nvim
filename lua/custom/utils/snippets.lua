@@ -31,15 +31,21 @@ function M.add_snippet_normal()
     end_line = line_num,
     total_lines = total_lines,
   }
+  local snippet_num = #snippet_buffer + 1
   table.insert(snippet_buffer, snippet)
+  local rel_path = vim.fn.fnamemodify(current_file, ':~:.')
+  vim.notify(string.format("Added snippet %d from %s, line %d", snippet_num, rel_path, line_num), vim.log.levels.INFO)
 end
 
 -- Add snippet in visual mode
 function M.add_snippet_visual()
-  local start_pos = vim.fn.getpos "'<"
-  local end_pos = vim.fn.getpos "'>"
-  local start_line, end_line = start_pos[2], end_pos[2]
-  local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+  -- Get current buffer and selection boundaries
+  local buf = vim.api.nvim_get_current_buf()
+  local start_line = vim.fn.line("'<")
+  local end_line = vim.fn.line("'>")
+
+  -- Get the selected lines
+  local lines = vim.api.nvim_buf_get_lines(buf, start_line - 1, end_line, false)
   local code = table.concat(lines, '\n')
   local current_file = vim.fn.expand '%:p'
   local total_lines = get_file_line_count(current_file)
@@ -51,7 +57,13 @@ function M.add_snippet_visual()
     end_line = end_line,
     total_lines = total_lines,
   }
+  local snippet_num = #snippet_buffer + 1
   table.insert(snippet_buffer, snippet)
+  local rel_path = vim.fn.fnamemodify(current_file, ':~:.')
+  vim.notify(string.format("Added snippet %d from %s, lines %d-%d", snippet_num, rel_path, start_line, end_line), vim.log.levels.INFO)
+
+  -- Return to normal mode
+  vim.cmd('normal! ' .. vim.api.nvim_replace_termcodes('<ESC>', true, false, true))
 end
 
 -- Generate file tree for snippets view

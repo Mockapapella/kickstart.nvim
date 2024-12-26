@@ -435,7 +435,7 @@ local plugins = {
       _G.snippets = snippets
       -- Set up keymaps
       vim.keymap.set('n', '<leader>we', function() snippets.add_snippet_normal() end, { noremap = true, silent = true })
-      vim.keymap.set('v', '<leader>we', function() snippets.add_snippet_visual() end, { noremap = true, silent = true })
+      vim.keymap.set('v', '<leader>we', ':<C-u>lua _G.snippets.add_snippet_visual()<CR>', { noremap = true, silent = true })
       vim.keymap.set('n', '<leader>wr', function() snippets.view_snippets() end, { noremap = true, silent = true })
       vim.keymap.set('n', '<leader>wq', function() snippets.clear_snippets() end, { noremap = true, silent = true })
     end,
