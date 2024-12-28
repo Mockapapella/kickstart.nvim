@@ -85,7 +85,7 @@ Here's the Git diff:
         content = prompt_template,
       },
     },
-    model = 'meta-llama/Meta-Llama-3-70B-Instruct',
+    model = 'Qwen/Qwen2.5-Coder-32B-Instruct',
     temperature = 0.1,
     top_p = 0.9,
     stream = false,
@@ -170,7 +170,9 @@ function M.setup()
   -- Register keymaps
   vim.keymap.set('n', 'gh', M.open_github, { noremap = true, silent = true })
   vim.keymap.set('v', 'gh', ':<C-U>lua require("custom.utils.git").open_github_visual()<CR>', { noremap = true, silent = true })
-  vim.keymap.set('n', '<leader>gai', function() M.generate_commit_message() end, { noremap = true, silent = false, desc = 'Generate commit message using AI' })
+  vim.keymap.set('n', '<leader>gai', function()
+    M.generate_commit_message()
+  end, { noremap = true, silent = false, desc = 'Generate commit message using AI' })
 end
 
 return M
