@@ -158,7 +158,7 @@ local plugins = {
       'theHamsta/nvim-dap-virtual-text',
     },
     config = function()
-      -- DAP keymaps
+      -- Existing DAP keymaps
       vim.keymap.set('n', '<F1>', ":lua require'dap'.continue()<CR>")
       vim.keymap.set('n', '<F2>', ":lua require'dap'.step_over()<CR>")
       vim.keymap.set('n', '<F3>', ":lua require'dap'.step_into()<CR>")
@@ -166,14 +166,13 @@ local plugins = {
       vim.keymap.set('n', '<F5>', ":lua require'dap'.close(); require'dapui'.close()<CR>")
       vim.keymap.set('n', '<leader>a', ":lua require'dap'.toggle_breakpoint()<CR>")
 
-      -- DAP configuration
       local dap, dapui = require 'dap', require 'dapui'
       require('dap').set_log_level 'TRACE'
 
       -- DAP UI setup
       dapui.setup()
 
-      -- DAP UI listeners
+      -- Existing DAP UI listeners
       dap.listeners.before.attach.dapui_config = function()
         dapui.open()
       end
@@ -187,27 +186,71 @@ local plugins = {
         dapui.close()
       end
 
-      -- Python adapter setup
-      dap.adapters.python = {
-        type = 'server',
-        host = 'localhost',
-        port = 5678,
-      }
+      -- UV-specific Python configuration
+      require('dap-python').setup()
 
-      -- Python configurations
       dap.configurations.python = {
         {
           type = 'python',
-          request = 'attach',
-          name = 'Dockerfile - /workspace',
-          pathMappings = {
-            {
-              localRoot = vim.fn.getcwd(),
-              remoteRoot = '/workspace',
-            },
+          request = 'launch',
+          name = 'UV: Run Current File',
+          program = '${file}',
+          python = function()
+            local cwd = vim.fn.getcwd()
+            local uv_python = cwd .. '/venv/bin/python'
+
+            -- Fallback to system Python if UV venv not found
+            if vim.fn.filereadable(uv_python) == 1 then
+              return uv_python
+            else
+              return vim.fn.exepath 'python3' or vim.fn.exepath 'python' or 'python'
+            end
+          end,
+          cwd = '${workspaceFolder}',
+          console = 'integratedTerminal',
+          justMyCode = true,
+          env = {
+            UV_PYTHON = vim.fn.getcwd() .. '/venv/bin/python',
+            UV_SOURCE = vim.fn.getcwd() .. '/venv',
+          },
+          setup = function()
+            -- Ensure UV environment is activated
+            if vim.fn.exists '$VIRTUAL_ENV' == 0 then
+              os.execute('source ' .. vim.fn.getcwd() .. '/venv/bin/activate')
+            end
+          end,
+        },
+        {
+          type = 'python',
+          request = 'launch',
+          name = 'UV: Run Script with Args',
+          program = '${file}',
+          args = function()
+            return vim.fn.input('Command line args: ', '')
+          end,
+          pythonPath = function()
+            return vim.fn.getcwd() .. '/venv/bin/python'
+          end,
+          uv = {
+            run = true,
+            extra_args = { '--quiet', '--strict' },
           },
         },
       }
+
+      -- Custom UV runner integration
+      vim.api.nvim_create_user_command('UvRun', function()
+        local file = vim.fn.expand '%:p'
+        local cmd = 'uv run ' .. file
+        require('dap').run {
+          type = 'python',
+          request = 'launch',
+          name = 'UV Run: ' .. vim.fn.fnamemodify(file, ':t'),
+          program = file,
+          pythonPath = vim.fn.getcwd() .. '/venv/bin/python',
+          uvRun = true,
+        }
+      end, {})
     end,
   },
   { 'tpope/vim-sleuth' },
