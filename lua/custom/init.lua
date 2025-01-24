@@ -102,19 +102,9 @@ local plugins = {
         },
         follow_current_file = {
           enabled = true,
-          leave_dirs_open = false,
+          leave_dirs_open = true,
         },
         use_libuv_file_watcher = true,
-      },
-      window = {
-        width = 30,
-        mappings = {
-          ['<space>'] = 'none',
-          ['P'] = { 'toggle_preview', config = { use_float = true, use_image_nvim = true } },
-        },
-        position = 'left',
-        number = false,
-        relativenumber = false,
       },
     },
     config = function(_, opts)
@@ -122,14 +112,6 @@ local plugins = {
       -- Set up keymaps
       vim.keymap.set('n', '<leader>e', ':Neotree toggle<CR>', { noremap = true, silent = true })
       vim.keymap.set('n', '<leader>o', ':Neotree focus<CR>', { noremap = true, silent = true })
-      -- Ensure line numbers stay disabled in neo-tree windows
-      vim.api.nvim_create_autocmd('FileType', {
-        pattern = 'neo-tree',
-        callback = function()
-          vim.opt_local.number = false
-          vim.opt_local.relativenumber = false
-        end,
-      })
     end,
   },
   {
@@ -424,20 +406,26 @@ local plugins = {
   },
   -- Add snippets as a local plugin
   {
-    dir = vim.fn.stdpath('config') .. '/lua/custom/utils',
+    dir = vim.fn.stdpath 'config' .. '/lua/custom/utils',
     name = 'snippets',
-    lazy = false,  -- Load immediately
-    priority = 1000,  -- High priority to load early
+    lazy = false, -- Load immediately
+    priority = 1000, -- High priority to load early
     config = function()
       -- Set up keymaps here instead of in snippets.lua
-      local snippets = require('custom.utils.snippets')
+      local snippets = require 'custom.utils.snippets'
       -- Store in global for access from keymaps
       _G.snippets = snippets
       -- Set up keymaps
-      vim.keymap.set('n', '<leader>we', function() snippets.add_snippet_normal() end, { noremap = true, silent = true })
+      vim.keymap.set('n', '<leader>we', function()
+        snippets.add_snippet_normal()
+      end, { noremap = true, silent = true })
       vim.keymap.set('v', '<leader>we', ':<C-u>lua _G.snippets.add_snippet_visual()<CR>', { noremap = true, silent = true })
-      vim.keymap.set('n', '<leader>wr', function() snippets.view_snippets() end, { noremap = true, silent = true })
-      vim.keymap.set('n', '<leader>wq', function() snippets.clear_snippets() end, { noremap = true, silent = true })
+      vim.keymap.set('n', '<leader>wr', function()
+        snippets.view_snippets()
+      end, { noremap = true, silent = true })
+      vim.keymap.set('n', '<leader>wq', function()
+        snippets.clear_snippets()
+      end, { noremap = true, silent = true })
     end,
   },
 }

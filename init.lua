@@ -65,11 +65,11 @@ require('lazy').setup(plugins, {
 
 -- Initialize core modules after plugins are loaded
 vim.api.nvim_create_autocmd('User', {
-  pattern = 'VeryLazy',  -- Use VeryLazy instead of LazyDone for earlier initialization
+  pattern = 'VeryLazy', -- Use VeryLazy instead of LazyDone for earlier initialization
   callback = function()
     -- Load core modules
-    require('custom.core.options')
-    require('custom.core.keymaps')
+    require 'custom.core.options'
+    require 'custom.core.keymaps'
     require('custom.core.autocmds').setup()
     require('custom.utils.git').setup()
   end,

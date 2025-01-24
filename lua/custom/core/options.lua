@@ -13,8 +13,8 @@ g.maplocalleader = ' '
 g.have_nerd_font = true
 
 -- Make line numbers default with relative numbers
-opt.number = true
-opt.relativenumber = true
+opt.number = false
+opt.relativenumber = false
 
 -- Enable mouse mode
 opt.mouse = 'a'
