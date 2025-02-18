@@ -1,6 +1,10 @@
 -- Plugin specifications
 local plugins = {
   {
+    'sphamba/smear-cursor.nvim',
+    opts = {},
+  },
+  {
     'hrsh7th/nvim-cmp',
     event = 'InsertEnter',
     dependencies = {
@@ -186,8 +190,21 @@ local plugins = {
         dapui.close()
       end
 
+      -- Set timeout before dap-python setup
+      dap.adapters.python = {
+        type = 'executable',
+        command = 'python',
+        args = { '-m', 'debugpy.adapter' },
+        options = {
+          timeout = 10000  -- Set timeout to 10 seconds
+        }
+      }
+
       -- UV-specific Python configuration
       require('dap-python').setup()
+
+      -- Increase timeout for debug adapter
+      vim.g.dap_python_timeout = 10000  -- Set to 10 seconds
 
       dap.configurations.python = {
         {
